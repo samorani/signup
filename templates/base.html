@@ -156,6 +156,62 @@
       font-size: 1.8rem; font-weight: 650;
     }
 
+    .sheet-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .sheet-head h1 { margin: 0; font-size: 1.8rem; letter-spacing: -.01em; }
+    .sheet-head .sub { margin: .25rem 0 0; color: var(--muted); }
+    .badge {
+      display: inline-block;
+      margin-left: .5rem;
+      padding: .1rem .55rem;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: .8rem;
+      font-weight: 600;
+    }
+    .week-nav { display: flex; gap: .5rem; }
+    .days {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+    .day {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .day h2 { margin: 0 0 .75rem; font-size: 1rem; }
+    .day h2 span { color: var(--muted); font-weight: 450; }
+    .day ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+    .slot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .4rem;
+      min-height: 2.6rem;
+      padding: .35rem .6rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .9rem;
+    }
+    .slot form { margin: 0; }
+    .slot .time { font-variant-numeric: tabular-nums; font-weight: 550; }
+    .slot .status { color: var(--muted); }
+    .slot.mine { background: var(--accent-soft); border-color: var(--accent); }
+    .slot.mine .status { color: var(--accent); font-weight: 600; }
+    .slot.taken { background: var(--bg); }
+    .slot.past { opacity: .5; }
+    .btn-small { padding: .25rem .7rem; font-size: .85rem; }
+
     footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 1.5rem; }
   </style>
 </head>
