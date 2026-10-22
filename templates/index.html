@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="hero">
+    {% if username %}
+      <div class="avatar">{{ username[0] | upper }}</div>
+      <h1>Welcome, {{ username }}</h1>
+      <p>You're logged in as <strong>{{ username }}</strong>. Office-hour sign-ups are coming soon.</p>
+    {% else %}
+      <h1>Office Hours Sign-Up</h1>
+      <p>Nobody is logged in. Create an account or log in to reserve a slot.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="{{ url_for('register') }}">Create an account</a>
+        <a class="btn btn-ghost" href="{{ url_for('login') }}">Log in</a>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}
