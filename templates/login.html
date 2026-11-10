@@ -1,14 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Log in · Office Hours{% endblock %}
+{% block title %}Log in{% endblock %}
 {% block content %}
-  <div class="card">
-    <h1>Welcome back</h1>
-    <p class="sub">Log in to your account.</p>
-    <form method="post">
-      <label>Username <input name="username" value="{{ username or '' }}" autocomplete="username" required autofocus></label>
-      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-      <button class="btn btn-primary btn-block" type="submit">Log in</button>
-    </form>
-    <p class="alt">New here? <a href="{{ url_for('register') }}">Create an account</a></p>
-  </div>
+  <h1>Log in</h1>
+  <form method="post">
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" value="{{ request.form.get('username', '') }}" required autofocus>
+
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required>
+
+    <button type="submit">Log in</button>
+  </form>
+  <p>No account yet? <a href="{{ url_for('register') }}">Register</a>.</p>
 {% endblock %}

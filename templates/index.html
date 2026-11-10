@@ -1,67 +1,13 @@
 {% extends "base.html" %}
+{% block title %}Home{% endblock %}
 {% block content %}
-  {% if user %}
-    <section class="sheet">
-      <div class="sheet-head">
-        <div>
-          <h1>Office hours</h1>
-          <p class="sub">
-            Week of {{ monday.strftime('%B') }} {{ monday.day }} – {{ friday.strftime('%B') }} {{ friday.day }}, {{ friday.year }}
-            {% if user.is_admin %}<span class="badge">Admin view</span>{% endif %}
-          </p>
-        </div>
-        <div class="week-nav">
-          <a class="btn btn-ghost" href="{{ url_for('index', week=prev_week) }}" aria-label="Previous week">&larr;</a>
-          {% if monday != this_week %}
-            <a class="btn btn-ghost" href="{{ url_for('index') }}">This week</a>
-          {% endif %}
-          <a class="btn btn-ghost" href="{{ url_for('index', week=next_week) }}" aria-label="Next week">&rarr;</a>
-        </div>
-      </div>
-
-      <div class="days">
-        {% for day in days %}
-          <div class="day">
-            <h2>{{ day.date.strftime('%A') }} <span>{{ day.date.strftime('%b') }} {{ day.date.day }}</span></h2>
-            <ul>
-              {% for slot in day.slots %}
-                {% set b = slot.booking %}
-                {% set mine = b and b.user_id == user.id %}
-                <li class="slot {% if mine %}mine{% elif b %}taken{% elif slot.past %}past{% else %}free{% endif %}">
-                  <span class="time">{{ slot.start.strftime('%I:%M').lstrip('0') }}–{{ slot.end.strftime('%I:%M').lstrip('0') }}</span>
-                  {% if mine %}
-                    <span class="status">You{% if user.is_admin %} ({{ b.username }}){% endif %}</span>
-                    {% if not slot.past %}
-                      <form method="post" action="{{ url_for('cancel') }}">
-                        <input type="hidden" name="slot" value="{{ slot.key }}">
-                        <button class="btn btn-small btn-ghost" type="submit">Cancel</button>
-                      </form>
-                    {% endif %}
-                  {% elif b %}
-                    <span class="status">{% if user.is_admin %}{{ b.username }}{% else %}Taken{% endif %}</span>
-                  {% elif slot.past %}
-                    <span class="status">—</span>
-                  {% else %}
-                    <form method="post" action="{{ url_for('book') }}">
-                      <input type="hidden" name="slot" value="{{ slot.key }}">
-                      <button class="btn btn-small btn-primary" type="submit">Book</button>
-                    </form>
-                  {% endif %}
-                </li>
-              {% endfor %}
-            </ul>
-          </div>
-        {% endfor %}
-      </div>
-    </section>
+  <h1>{{ site_name }} sign-up</h1>
+  {% if g.user %}
+    <p>You are logged in as <strong>{{ g.user['username'] }}</strong>.
+      Go to the <a href="{{ url_for('sheet') }}">sign-up sheet</a> to book a slot.</p>
   {% else %}
-    <section class="hero">
-      <h1>Office Hours Sign-Up</h1>
-      <p>Nobody is logged in. Create an account or log in to reserve a slot.</p>
-      <div class="actions">
-        <a class="btn btn-primary" href="{{ url_for('register') }}">Create an account</a>
-        <a class="btn btn-ghost" href="{{ url_for('login') }}">Log in</a>
-      </div>
-    </section>
+    <p>You are not logged in.
+      <a href="{{ url_for('login') }}">Log in</a> or
+      <a href="{{ url_for('register') }}">register</a> to get started.</p>
   {% endif %}
 {% endblock %}

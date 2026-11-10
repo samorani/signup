@@ -71,11 +71,25 @@ step() { echo; echo "== $1"; }
 fail() { echo "ERROR: $1"; exit 1; }
 
 deploy_app() {
-  if [ ! -f requirements.txt ]; then
-    fail "no requirements.txt here. Run this script from the folder of your app, or use --no-deploy."
+  # Cloud Run builds from a Dockerfile if there is one, otherwise it detects the
+  # language (Python, Node.js, ...). This only checks we are in an app folder.
+  if [ ! -f requirements.txt ] && [ ! -f package.json ] && [ ! -f Dockerfile ]; then
+    fail "no requirements.txt, package.json or Dockerfile here. Run this script from the folder of your app, or use --no-deploy."
   fi
-  gcloud run deploy "$APP" --source . --project "$PROJECT" --region "$REGION" --allow-unauthenticated --quiet \
-    || fail "deploy failed. Read the message above."
+  # On a new project, the roles/run.builder grant from step 5 can take a minute
+  # or two to take effect, and the first deploy fails with PERMISSION_DENIED.
+  # Retry that case only; any other error fails right away.
+  LOG=$(mktemp)
+  OK=0
+  for i in 1 2 3 4; do
+    gcloud run deploy "$APP" --source . --project "$PROJECT" --region "$REGION" --allow-unauthenticated --quiet 2>&1 | tee "$LOG"
+    if [ "${PIPESTATUS[0]}" = 0 ]; then OK=1; break; fi
+    grep -q "PERMISSION_DENIED" "$LOG" || break
+    [ "$i" = 4 ] && break
+    echo "build permission not active yet, waiting 60 s and trying again ($i/3)..."; sleep 60
+  done
+  rm -f "$LOG"
+  [ "$OK" = 1 ] || fail "deploy failed. Read the message above."
   echo
   echo "Your website:"
   gcloud run services describe "$APP" --project "$PROJECT" --region "$REGION" --format="value(status.url)"

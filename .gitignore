@@ -1,14 +1,4 @@
-# Virtual environment
-.venv/
-
-# Python
 __pycache__/
-*.py[cod]
-
-# Local database
-signup.db
-
-# Environment / editor
+.venv/
 .env
-.vscode/
-.idea/
+signup.db
