@@ -214,6 +214,8 @@ def login_required(view):
 
 # --- Routes -----------------------------------------------------------------
 
+MIN_PASSWORD_LENGTH = 8
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -229,6 +231,8 @@ def register():
             flash("Username is required.")
         elif not password:
             flash("Password is required.")
+        elif len(password) < MIN_PASSWORD_LENGTH:
+            flash(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
         else:
             db = get_db()
             try:
