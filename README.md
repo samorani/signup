@@ -22,6 +22,20 @@ The app is configured through a `.env` file next to `app.py` (never commit it):
 | `SITE_NAME` | Title shown in the browser tab and page header |
 | `ADMIN_USERNAME` | The user who can see who booked each slot |
 | `TIMEZONE` | Optional IANA zone the office hours are in, e.g. `America/Los_Angeles` (default: the system zone) |
+| `ATTACHMENTS_BUCKET` | Private Cloud Storage bucket for the PDFs and images attached to bookings, `PROJECT_ID-attachments` |
+
+### Attachments
+
+A logged-in user can attach one PDF or image (PNG, JPEG, GIF or WebP, at most 5 MB) to each of their upcoming bookings; a new file replaces the old one, and cancelling the booking deletes it. The file is stored in `ATTACHMENTS_BUCKET` as `bookings/<booking id>`, and its name in the `attachment` column of `bookings`. Only the booking's owner and the administrator can open it.
+
+The bucket was created once, private, and the service's account (the project's default compute account) was allowed to read and write it:
+
+```
+gcloud storage buckets create gs://PROJECT_ID-attachments --location us-west1 --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets add-iam-policy-binding gs://PROJECT_ID-attachments --member serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com --role roles/storage.objectAdmin
+```
+
+When you run the app on your laptop it reaches the bucket with your own Google account; run `gcloud auth application-default login` once if you have not already.
 
 `python smoke_test.py` runs the end-to-end checks in a throwaway schema of the development database.
 
@@ -33,4 +47,4 @@ The app is configured through a `.env` file next to `app.py` (never commit it):
 bash deploy.sh
 ```
 
-It stores `DATABASE_URL_PROD` and `SECRET_KEY` as Secret Manager secrets (created from `.env` the first time, then left alone unless you pass `--update-secrets`), passes `SITE_NAME`, `ADMIN_USERNAME` and `TIMEZONE` as plain environment variables, and never uploads `.env` itself (`.gcloudignore`). `Procfile` tells Cloud Run to serve the app with gunicorn.
+It stores `DATABASE_URL_PROD` and `SECRET_KEY` as Secret Manager secrets (created from `.env` the first time, then left alone unless you pass `--update-secrets`), passes `SITE_NAME`, `ADMIN_USERNAME`, `TIMEZONE` and `ATTACHMENTS_BUCKET` as plain environment variables, and never uploads `.env` itself (`.gcloudignore`). `Procfile` tells Cloud Run to serve the app with gunicorn.
