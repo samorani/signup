@@ -10,3 +10,4 @@ __pycache__/
 signup.db
 test/
 .pytest_cache/
+github-deployer.json
