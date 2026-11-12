@@ -1,6 +1,8 @@
 # Run the pytest suite on every pull request and every push to main.
-# The tests use a throwaway PostgreSQL started inside the job; nothing is deployed
-# and no real database (dev or production) is used.
+# The tests use a throwaway PostgreSQL started inside the job; no real database
+# (dev or production) is used.
+# After the tests pass on a push to main, the deploy job deploys the app to
+# Cloud Run as the service `signup-messi`. Pull requests are never deployed.
 name: Tests
 
 on:
@@ -47,3 +49,40 @@ jobs:
 
       - name: Run tests
         run: python -m pytest test -v
+
+  # Deploy to Cloud Run, only for pushes to main and only if the tests passed.
+  # The service account key comes from the GCP_CREDENTIALS secret. It is written
+  # to the runner's temp directory (outside the checkout, so `--source .` can
+  # never upload it) and deleted at the end of the job, even if a step fails.
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-signup-messi
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Sign in to Google Cloud
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: |
+          umask 077
+          printf '%s' "$GCP_CREDENTIALS" > "$RUNNER_TEMP/gcp-key.json"
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-key.json"
+
+      - name: Deploy to Cloud Run
+        run: >-
+          gcloud run deploy signup-messi
+          --source .
+          --project office-hours-michele-62
+          --region us-west1
+          --quiet
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/gcp-key.json"

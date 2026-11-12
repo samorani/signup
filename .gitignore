@@ -3,3 +3,4 @@ __pycache__/
 .env
 signup.db
 .pytest_cache/
+github-deployer.json
