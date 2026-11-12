@@ -23,6 +23,7 @@ from pathlib import Path
 import psycopg
 import pytest
 from dotenv import dotenv_values
+from google.api_core import exceptions as gcs_errors
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -46,6 +47,8 @@ os.environ["DATABASE_URL_PROD"] = ""     # no production URL in the test process
 os.environ["DATABASE_URL_DEV"] = TEST_DB_URL
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 os.environ["ADMIN_USERNAME"] = "admin"
+# Never the real bucket: the tests replace it with FakeBucket below anyway.
+os.environ["ATTACHMENTS_BUCKET"] = "test-attachments-not-a-real-bucket"
 
 # Empty the test database before app.py's init_db() recreates the tables.
 with psycopg.connect(TEST_DB_URL, autocommit=True) as _conn:
@@ -63,6 +66,41 @@ def empty_tables():
     with psycopg.connect(TEST_DB_URL, autocommit=True) as conn:
         conn.execute("TRUNCATE bookings, users RESTART IDENTITY CASCADE")
     yield
+
+
+class FakeBlob:
+    def __init__(self, bucket, name):
+        self.bucket, self.name = bucket, name
+
+    def upload_from_string(self, data, content_type=None):
+        self.bucket.files[self.name] = (bytes(data), content_type)
+
+    def download_as_bytes(self):
+        if self.name not in self.bucket.files:
+            raise gcs_errors.NotFound(self.name)
+        return self.bucket.files[self.name][0]
+
+    def delete(self):
+        if self.bucket.files.pop(self.name, None) is None:
+            raise gcs_errors.NotFound(self.name)
+
+
+class FakeBucket:
+    """An in-memory stand-in for the attachments bucket: {object name: (bytes, content type)}."""
+
+    def __init__(self):
+        self.files = {}
+
+    def blob(self, name):
+        return FakeBlob(self, name)
+
+
+@pytest.fixture(autouse=True)
+def bucket(monkeypatch):
+    """Every test gets an empty fake bucket; no test ever reaches Cloud Storage."""
+    fake = FakeBucket()
+    monkeypatch.setattr(appmod, "attachments_bucket", lambda: fake)
+    return fake
 
 
 @pytest.fixture

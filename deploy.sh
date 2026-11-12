@@ -6,7 +6,10 @@
 #                                       (DATABASE_URL_DEV stays on your laptop.)
 #                                       Created from .env on first run; secrets
 #                                       that already exist are left alone.
-#   SITE_NAME, ADMIN_USERNAME, TIMEZONE -> plain environment variables on the service.
+#   SITE_NAME, ADMIN_USERNAME, TIMEZONE, ATTACHMENTS_BUCKET
+#                                    -> plain environment variables on the service.
+#                                       (The bucket itself is created once by hand,
+#                                       see README.md.)
 #
 # Usage, from the app folder, after `gcloud auth login`:
 #   bash deploy.sh                       deploy signup-messi to gcloud's current project
@@ -92,7 +95,9 @@ echo "$SA can read both secrets"
 
 step "3. Deploy $APP to $REGION"
 # ^|^ makes | the separator, so values may contain commas.
-ENV_VARS="^|^SITE_NAME=$(env_value SITE_NAME)|ADMIN_USERNAME=$(env_value ADMIN_USERNAME)"
+ATTACHMENTS_BUCKET=$(env_value ATTACHMENTS_BUCKET)
+[ -z "$ATTACHMENTS_BUCKET" ] && fail "ATTACHMENTS_BUCKET is empty in .env"
+ENV_VARS="^|^SITE_NAME=$(env_value SITE_NAME)|ADMIN_USERNAME=$(env_value ADMIN_USERNAME)|ATTACHMENTS_BUCKET=$ATTACHMENTS_BUCKET"
 TIMEZONE=$(env_value TIMEZONE)
 [ -n "$TIMEZONE" ] && ENV_VARS="$ENV_VARS|TIMEZONE=$TIMEZONE"
 gcloud run deploy "$APP" --source . --project "$PROJECT" --region "$REGION" \

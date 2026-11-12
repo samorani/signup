@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Sign-up sheet{% endblock %}
+{% macro attachment_link(cell) %}
+  {% if cell.attachment %}
+    <a class="attachment" href="{{ url_for('open_attachment', booking_id=cell.booking_id) }}"
+       target="_blank" rel="noopener" title="{{ cell.attachment }}">&#128206; {{ cell.attachment }}</a>
+  {% endif %}
+{% endmacro %}
 {% block content %}
   <h1>Sign-up sheet</h1>
   <p>Office hours run Monday to Sunday, 2:00 to 4:00 pm, in half-hour slots.
+    You can attach a PDF or an image (at most 5 MB) to each of your bookings.
     {% if g.is_admin %}You are the administrator and can see who booked each slot.{% endif %}
   </p>
 
@@ -31,8 +38,10 @@
               {% if cell.past %}
                 {% if cell.status == 'mine' %}
                   <span>Yours</span>
+                  {{ attachment_link(cell) }}
                 {% elif cell.status == 'taken' and g.is_admin %}
                   <span>Taken by <strong>{{ cell.username }}</strong></span>
+                  {{ attachment_link(cell) }}
                 {% elif cell.status == 'taken' %}
                   <span>Taken</span>
                 {% else %}
@@ -51,8 +60,17 @@
                   <input type="hidden" name="start" value="{{ cell.start }}">
                   <button type="submit">Cancel</button>
                 </form>
+                {{ attachment_link(cell) }}
+                <form class="attach" method="post" enctype="multipart/form-data"
+                      action="{{ url_for('attach', booking_id=cell.booking_id) }}">
+                  <input type="file" name="file" required
+                         accept="application/pdf,image/png,image/jpeg,image/gif,image/webp"
+                         aria-label="PDF or image, at most 5 MB">
+                  <button type="submit">{% if cell.attachment %}Replace file{% else %}Attach file{% endif %}</button>
+                </form>
               {% elif g.is_admin %}
                 <span>Taken by <strong>{{ cell.username }}</strong></span>
+                {{ attachment_link(cell) }}
               {% else %}
                 <span>Taken</span>
               {% endif %}
