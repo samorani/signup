@@ -15,6 +15,7 @@ production (or development) database:
   empty tables.
 """
 
+import json
 import os
 import sys
 from datetime import timedelta
@@ -100,6 +101,36 @@ def bucket(monkeypatch):
     """Every test gets an empty fake bucket; no test ever reaches Cloud Storage."""
     fake = FakeBucket()
     monkeypatch.setattr(appmod, "attachments_bucket", lambda: fake)
+    return fake
+
+
+class FakeClaude:
+    """Stands in for the Messages API: records each request and answers with
+    `answer` (a dict that becomes the JSON text Claude returns)."""
+
+    def __init__(self):
+        self.requests = []
+        self.answer = {"slot_id": "none", "reason": "No answer set."}
+        self.stop_reason = "end_turn"
+
+    def __call__(self, params):
+        self.requests.append(params)
+        return {
+            "model": params["model"],
+            "role": "assistant",
+            "stop_reason": self.stop_reason,
+            "content": [{"type": "text", "text": json.dumps(self.answer)}],
+        }
+
+
+@pytest.fixture(autouse=True)
+def claude(monkeypatch):
+    """Every test gets a fake Claude; no test ever calls the real API."""
+    import assistant
+
+    fake = FakeClaude()
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
+    monkeypatch.setattr(assistant, "call_claude", fake)
     return fake
 
 

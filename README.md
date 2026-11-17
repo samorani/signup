@@ -23,6 +23,8 @@ The app is configured through a `.env` file next to `app.py` (never commit it):
 | `ADMIN_USERNAME` | The user who can see who booked each slot |
 | `TIMEZONE` | Optional IANA zone the office hours are in, e.g. `America/Los_Angeles` (default: the system zone) |
 | `ATTACHMENTS_BUCKET` | Private Cloud Storage bucket for the PDFs and images attached to bookings, `PROJECT_ID-attachments` |
+| `ANTHROPIC_API_KEY` | Optional. Turns on the *Ask AI to find a slot* box on the sheet (see below) |
+| `SHOW_AI_MESSAGES` | Optional. `1` shows the messages sent to and received from Claude under its answer; default `1` locally, `0` on Cloud Run |
 
 ### Attachments
 
@@ -39,6 +41,10 @@ When you run the app on your laptop it reaches the bucket with your own Google a
 
 `python smoke_test.py` runs the end-to-end checks in a throwaway schema of the development database.
 
+### Ask AI to find a slot
+
+When `ANTHROPIC_API_KEY` is set, the sheet has a box where a logged-in user types a request in plain words, such as "any time Thursday afternoon?". `assistant.py` sends it to Claude (`claude-opus-5-5`) together with the free slots from today to two weeks out, and Claude picks the one that fits best or says none does. The answer is shown above the table with a *Book this slot* button that submits the ordinary book form: nothing is ever booked automatically. The app checks that the suggested slot is one of the free slots it sent. The tests replace Claude with a fake and never call the API.
+
 ## Deploying to Cloud Run
 
 `gcp_setup.sh` prepares the Google Cloud project (billing, APIs, build permission). After that, `deploy.sh` deploys the app:
@@ -47,4 +53,4 @@ When you run the app on your laptop it reaches the bucket with your own Google a
 bash deploy.sh
 ```
 
-It stores `DATABASE_URL_PROD` and `SECRET_KEY` as Secret Manager secrets (created from `.env` the first time, then left alone unless you pass `--update-secrets`), passes `SITE_NAME`, `ADMIN_USERNAME`, `TIMEZONE` and `ATTACHMENTS_BUCKET` as plain environment variables, and never uploads `.env` itself (`.gcloudignore`). `Procfile` tells Cloud Run to serve the app with gunicorn.
+It stores `DATABASE_URL_PROD`, `SECRET_KEY` and `ANTHROPIC_API_KEY` as Secret Manager secrets (created from `.env` the first time, then left alone unless you pass `--update-secrets`), passes `SITE_NAME`, `ADMIN_USERNAME`, `TIMEZONE` and `ATTACHMENTS_BUCKET` as plain environment variables, and never uploads `.env` itself (`.gcloudignore`). `Procfile` tells Cloud Run to serve the app with gunicorn.

@@ -13,6 +13,51 @@
     {% if g.is_admin %}You are the administrator and can see who booked each slot.{% endif %}
   </p>
 
+  {% if ai_enabled %}
+    <form class="ask" method="post" action="{{ url_for('suggest') }}">
+      <label for="ask-request"><span class="ai-mark" aria-hidden="true">&#10024;</span> Ask AI to find a slot</label>
+      <div class="ask-row">
+        <input type="text" id="ask-request" name="request" required maxlength="300"
+               placeholder="e.g. any time Thursday afternoon? or the earliest slot this week"
+               value="{{ suggestion.request if suggestion else '' }}">
+        <input type="hidden" name="week" value="{{ week.isoformat() }}">
+        <button type="submit">Suggest</button>
+      </div>
+      <small>AI only suggests a slot. Nothing is booked until you click Book.</small>
+    </form>
+  {% endif %}
+
+  {% if suggestion %}
+    <div class="suggestion">
+      <span class="ai-mark" aria-hidden="true">&#10024;</span>
+      <div>
+        {% if suggestion.error %}
+          <p>{{ suggestion.error }}</p>
+        {% elif suggestion.slot %}
+          {% set day, start = suggestion.slot %}
+          <p><strong>Suggested: {{ day | dayname }}, {{ start | ampm }} &ndash; {{ start | slotend | ampm }}</strong></p>
+          <p>{{ suggestion.reason }}</p>
+          <form method="post" action="{{ url_for('book') }}">
+            <input type="hidden" name="day" value="{{ day.isoformat() }}">
+            <input type="hidden" name="start" value="{{ start }}">
+            <button type="submit">Book this slot</button>
+          </form>
+        {% else %}
+          <p><strong>No free slot fits.</strong> {{ suggestion.reason }}</p>
+        {% endif %}
+        {% if suggestion.sent %}
+          <details class="ai-debug">
+            <summary>Messages to and from Claude (debug)</summary>
+            <h3>Sent to Claude</h3>
+            <pre>{{ suggestion.sent }}</pre>
+            <h3>Received from Claude</h3>
+            <pre>{{ suggestion.received or '(nothing)' }}</pre>
+          </details>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
   <div class="weeknav">
     <a href="{{ url_for('sheet', week=prev_week.isoformat()) }}">&larr; Previous week</a>
     <strong>Week of {{ days[0] | dayname }}, {{ days[0].year }}</strong>
@@ -34,7 +79,7 @@
         <tr>
           <th>{{ row.start | ampm }} &ndash; {{ row.end | ampm }}</th>
           {% for cell in row.cells %}
-            <td class="{{ cell.status }}{% if cell.past %} past{% endif %}">
+            <td class="{{ cell.status }}{% if cell.past %} past{% endif %}{% if cell.suggested %} suggested{% endif %}">
               {% if cell.past %}
                 {% if cell.status == 'mine' %}
                   <span>Yours</span>
