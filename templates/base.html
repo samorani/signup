@@ -52,6 +52,22 @@
     table.sheet td a.attachment { display: block; margin-top: 0.3rem; font-size: 0.8rem; font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     table.sheet td form.attach { display: block; margin-top: 0.4rem; }
     table.sheet td form.attach input[type=file] { display: block; width: 100%; font-size: 0.7rem; font-weight: 400; }
+    body > form.ask { max-width: 64rem; }
+    form.ask label { margin-top: 0; display: flex; align-items: center; gap: 0.4rem; }
+    form.ask .ask-row { display: flex; gap: 0.5rem; align-items: center; }
+    form.ask .ask-row input[type=text] { flex: 1; margin-top: 0.25rem; }
+    form.ask .ask-row button { margin-top: 0.25rem; white-space: nowrap; }
+    form.ask small { color: var(--muted); }
+    .ai-mark { font-size: 1.2rem; line-height: 1; }
+    .suggestion { display: flex; gap: 0.6rem; align-items: flex-start; max-width: 64rem; width: calc(100% - 2rem); margin: 0 auto 1rem; padding: 0.9rem 1.25rem; background: #f3ecff; border: 1px solid #c9b3f5; border-radius: 8px; color: #3b1f6e; }
+    .suggestion > div { flex: 1; min-width: 0; }
+    .suggestion p { margin: 0 0 0.35rem; }
+    .suggestion form button { margin-top: 0.4rem; }
+    .ai-debug { margin-top: 0.75rem; font-size: 0.85rem; }
+    .ai-debug summary { cursor: pointer; color: var(--muted); }
+    .ai-debug h3 { font-size: 0.9rem; margin: 0.75rem 0 0.25rem; }
+    .ai-debug pre { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; max-height: 24rem; margin: 0; }
+    table.sheet td.suggested { outline: 3px solid #8b5cf6; outline-offset: -3px; }
     .weeknav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; max-width: 64rem; width: calc(100% - 2rem); margin: 0 auto 0.75rem; }
     .weeknav strong { flex: 1; text-align: center; }
     @media (max-width: 40rem) { nav { flex-wrap: wrap; gap: 0.75rem 1rem; } table.sheet th, table.sheet td { padding: 0.4rem 0.25rem; font-size: 0.85rem; } }

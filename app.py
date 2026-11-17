@@ -1,4 +1,5 @@
 import io
+import json
 import os
 from datetime import date, datetime, time, timedelta
 from functools import wraps
@@ -24,6 +25,8 @@ from google.cloud import storage
 from psycopg.rows import dict_row
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+
+import assistant
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -56,6 +59,14 @@ TZ = ZoneInfo(TIMEZONE) if TIMEZONE else None
 ATTACHMENTS_BUCKET = require_env("ATTACHMENTS_BUCKET")
 
 MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024  # 5 MB
+
+# ANTHROPIC_API_KEY (optional) turns on the "ask AI" box on the sheet; it is
+# read by assistant.py. SHOW_AI_MESSAGES=1 shows the messages sent to and
+# received from Claude under its answer: on by default on your laptop, off on
+# Cloud Run unless set.
+SHOW_AI_MESSAGES = os.environ.get(
+    "SHOW_AI_MESSAGES", "0" if IS_PRODUCTION else "1"
+).strip().lower() in ("1", "true", "yes")
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
@@ -176,6 +187,9 @@ def slot_end(hhmm):
     if minute >= 60:
         hour, minute = hour + 1, minute - 60
     return f"{hour:02d}:{minute:02d}"
+
+
+app.jinja_env.filters["slotend"] = slot_end
 
 
 def slot_datetime(day, start):
@@ -349,11 +363,18 @@ def logout():
 @app.route("/sheet")
 @login_required
 def sheet():
+    # ?week=YYYY-MM-DD picks a week; any date in it will do. Default: this week.
+    return render_sheet(parse_day(request.args.get("week")))
+
+
+def render_sheet(any_day_of_week, suggestion=None):
+    """The sign-up sheet for the week containing `any_day_of_week` (default:
+    this week), with the AI's suggestion above the table if there is one."""
     today = now().date()
     this_week = week_start(today)
-    # ?week=YYYY-MM-DD picks a week; any date in it will do. Default: this week.
-    monday = week_start(parse_day(request.args.get("week")) or today)
+    monday = week_start(any_day_of_week or today)
     days = [monday + timedelta(days=i) for i in range(len(DAYS))]
+    suggested = suggestion["slot"] if suggestion else None
 
     rows = get_db().execute(
         """
@@ -386,6 +407,7 @@ def sheet():
                     "username": booking["username"] if booking else None,
                     "booking_id": booking["id"] if booking else None,
                     "attachment": booking["attachment"] if booking else None,
+                    "suggested": (day, start) == suggested,
                 }
             )
         grid.append({"start": start, "end": slot_end(start), "cells": cells})
@@ -398,7 +420,78 @@ def sheet():
         this_week=this_week,
         prev_week=monday - timedelta(days=7),
         next_week=monday + timedelta(days=7),
+        week=monday,
+        ai_enabled=assistant.is_configured(),
+        suggestion=suggestion,
     )
+
+
+# --- Ask AI for a slot --------------------------------------------------------
+# The person types a request in plain words; Claude picks the free slot that
+# fits best, or none. The answer is shown with a Book button that posts the
+# ordinary book form: nothing is ever booked without the person clicking it.
+
+AI_DAYS_AHEAD = 14  # Claude chooses among the free slots from today to two weeks out.
+
+
+def upcoming_free_slots():
+    """Free, future slots from today through the next AI_DAYS_AHEAD days."""
+    today = now().date()
+    last = today + timedelta(days=AI_DAYS_AHEAD - 1)
+    taken = {
+        (r["day"], r["start"])
+        for r in get_db().execute(
+            "SELECT day, start FROM bookings WHERE day BETWEEN %s AND %s", (today, last)
+        ).fetchall()
+    }
+    slots = []
+    for offset in range(AI_DAYS_AHEAD):
+        day = today + timedelta(days=offset)
+        for start in SLOT_TIMES:
+            if (day, start) not in taken and not is_past(day, start):
+                slots.append((day, start))
+    return slots
+
+
+def slot_id(day, start):
+    return f"{day.isoformat()} {start}"
+
+
+def slot_label(day, start):
+    return f"{format_day(day)}, {format_time(start)} to {format_time(slot_end(start))}"
+
+
+@app.route("/suggest", methods=["POST"])
+@login_required
+def suggest():
+    week = parse_day(request.form.get("week"))
+    text = request.form.get("request", "").strip()
+    if not text:
+        flash("Type what you are looking for, e.g. \"any time Thursday afternoon?\"")
+        return redirect(url_for("sheet", week=week.isoformat() if week else None))
+    text = text[: assistant.MAX_REQUEST_CHARS]
+
+    slots = upcoming_free_slots()
+    by_id = {slot_id(d, s): (d, s) for d, s in slots}
+    result = assistant.suggest_slot(
+        text, [{"id": i, "label": slot_label(*slot)} for i, slot in by_id.items()], now()
+    )
+    if result["sent"] is not None:
+        app.logger.info("Sent to Claude: %s", json.dumps(result["sent"]))
+        app.logger.info("Received from Claude: %s", json.dumps(result["received"], default=str))
+
+    slot = by_id.get(result["slot_id"])
+    suggestion = {
+        "request": text,
+        "slot": slot,
+        "reason": result["reason"],
+        "error": result["error"],
+        "sent": json.dumps(result["sent"], indent=2) if SHOW_AI_MESSAGES and result["sent"] else None,
+        "received": json.dumps(result["received"], indent=2, default=str)
+        if SHOW_AI_MESSAGES and result["received"] else None,
+    }
+    # Show the week of the suggested slot, so it is visible in the table.
+    return render_sheet(slot[0] if slot else week, suggestion)
 
 
 @app.route("/book", methods=["POST"])

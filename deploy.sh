@@ -2,7 +2,8 @@
 # deploy.sh — deploy this app to Cloud Run, with its secrets in Secret Manager.
 #
 # Reads the values from .env but never uploads .env itself (see .gcloudignore):
-#   DATABASE_URL_PROD, SECRET_KEY    -> Secret Manager secrets of the same name.
+#   DATABASE_URL_PROD, SECRET_KEY,
+#   ANTHROPIC_API_KEY                -> Secret Manager secrets of the same name.
 #                                       (DATABASE_URL_DEV stays on your laptop.)
 #                                       Created from .env on first run; secrets
 #                                       that already exist are left alone.
@@ -13,8 +14,8 @@
 #
 # Usage, from the app folder, after `gcloud auth login`:
 #   bash deploy.sh                       deploy signup-messi to gcloud's current project
-#   bash deploy.sh --update-secrets      also push .env's DATABASE_URL_PROD and SECRET_KEY
-#                                        as new secret versions (changes production!)
+#   bash deploy.sh --update-secrets      also push .env's DATABASE_URL_PROD, SECRET_KEY and
+#                                        ANTHROPIC_API_KEY as new secret versions (changes production!)
 #   bash deploy.sh --project ID --region us-west1 --app signup-messi
 #
 # Project setup (billing, APIs, build permission) is gcp_setup.sh's job: run it once first.
@@ -69,7 +70,7 @@ SA="$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
 step "2. Secrets in Secret Manager"
 gcloud services enable secretmanager.googleapis.com --project "$PROJECT" --quiet \
   || fail "could not enable the Secret Manager API"
-for NAME in DATABASE_URL_PROD SECRET_KEY; do
+for NAME in DATABASE_URL_PROD SECRET_KEY ANTHROPIC_API_KEY; do
   VALUE=$(env_value "$NAME")
   [ -z "$VALUE" ] && fail "$NAME is empty in .env"
   if gcloud secrets describe "$NAME" --project "$PROJECT" >/dev/null 2>&1; then
@@ -91,7 +92,7 @@ for NAME in DATABASE_URL_PROD SECRET_KEY; do
       --condition=None --quiet >/dev/null \
     || fail "could not let $SA read $NAME"
 done
-echo "$SA can read both secrets"
+echo "$SA can read all three secrets"
 
 step "3. Deploy $APP to $REGION"
 # ^|^ makes | the separator, so values may contain commas.
@@ -102,7 +103,7 @@ TIMEZONE=$(env_value TIMEZONE)
 [ -n "$TIMEZONE" ] && ENV_VARS="$ENV_VARS|TIMEZONE=$TIMEZONE"
 gcloud run deploy "$APP" --source . --project "$PROJECT" --region "$REGION" \
     --allow-unauthenticated --quiet \
-    --set-secrets="DATABASE_URL_PROD=DATABASE_URL_PROD:latest,SECRET_KEY=SECRET_KEY:latest" \
+    --set-secrets="DATABASE_URL_PROD=DATABASE_URL_PROD:latest,SECRET_KEY=SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
     --set-env-vars="$ENV_VARS" \
   || fail "deploy failed. Read the message above."
 
